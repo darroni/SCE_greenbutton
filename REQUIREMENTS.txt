@@ -1,3 +1,5 @@
+#Python module requirements
+
 SELENIUM
 TIME
 DATETIME
@@ -5,3 +7,6 @@ GETPASS
 SHUTIL
 OS
 PATH
+CSV
+PANDAS
+WARNINGS
