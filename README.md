@@ -11,5 +11,17 @@ Included are:
     
 # Details
 SCE_download.py
-  - This script requires the following Python libraries
+
+This script uses SELENIUM and the CHROME webdriver to launch a browser instance and go to https://www.sce.com/mysce/login.  It requires some manual interaction in the Python terminal:
+  - SCE username
+  - SCE password
+  - Start download date in MM-DD-YY format
+  - End download date in MM-DD-YY formate, or Enter for today
+
+It also requires some manual interaction with the Chrome Browser:
+  - Solve the ReCaptcha puzzle
+  - Click the download button
+
+One line of code requires an edit.
     
+![image](https://github.com/darroni/SCE_greenbutton/assets/17322676/3c664962-76f2-40f7-b5d8-adbd92305cf0)
