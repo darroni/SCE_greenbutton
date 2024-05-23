@@ -9,8 +9,8 @@ Included are:
   - Example output file in CSV format
   - Example Excel file with Pivot Tables defined for kwH Used/Generated and Cost/Value
     
-# Details
-SCE_download.py
+## Details
+### SCE_download.py
 
 This script uses SELENIUM and the CHROME webdriver to launch a browser instance and go to https://www.sce.com/mysce/login.  It requires some manual interaction in the Python terminal:
   - SCE username
@@ -22,6 +22,11 @@ It also requires some manual interaction with the Chrome Browser:
   - Solve the ReCaptcha puzzle
   - Click the download button
 
-One line of code requires an edit.
-    
-![image](https://github.com/darroni/SCE_greenbutton/assets/17322676/3c664962-76f2-40f7-b5d8-adbd92305cf0)
+Add your SCE Account Number to the following line of code.
+````
+source = fr"{dl_folder}/SCE_Usage_YourAccountNumberHere_{new_start_date}_to_{new_end_date}.csv"
+````
+
+**NOTE:**  Make sure you match the version of the CHROMEDRIVER.EXE with your Chrome browser.
+
+### 
