@@ -29,4 +29,11 @@ source = fr"{dl_folder}/SCE_Usage_YourAccountNumberHere_{new_start_date}_to_{new
 
 **NOTE:**  Make sure you match the version of the CHROMEDRIVER.EXE with your Chrome browser.
 
-### 
+### SCE_parse.py
+
+This script uses PANDAS, CSV, DATETIME, and WARNINGS to parse the SCE_Usage.csv file downloaded in SCE_download.py.  It massages the data to to meet my requirements and can certainly be improved upon or optimized.
+
+The only variable tha might need to be changed is the location of your input file, or SCE_Usage.csv file.  Line 224 in the code can be modified to suit your needs.
+````
+input_file = "/path/to/your/sce_usage.csv"
+````
