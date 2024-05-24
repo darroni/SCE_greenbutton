@@ -63,15 +63,13 @@ def main():
         print(f"Login error: {e}")
 
     try:
-        # Wait for the login to complete
-        wait = WebDriverWait(driver, timeout).until(EC.presence_of_element_located((By.XPATH, "//*[@id='react-login-main']/div/div/section/div[3]/form/div[2]/div[4]/button")))
-
+        # Wait for the page to load
         time.sleep(timeout)
 
         noob_window = driver.find_elements(By.XPATH, "//*[@id='DSSModal']/div/div/div[1]/button")
         current_usage_button = driver.find_elements(By.XPATH, "//*[@id='react-login-main']/div/div/section/div[3]/form/div[2]/div[4]/button")
 
-        if noob_window is not None:
+        if len(noob_window) != 0:
             noob_window[0].click()
             driver.get("https://www.sce.com/sma/ESCAA/EscGreenButtonData")
         else:
@@ -128,6 +126,7 @@ def main():
 
 # Main function to run the program
 if __name__ == "__main__":
+
 
     main()
     print("Done!")
