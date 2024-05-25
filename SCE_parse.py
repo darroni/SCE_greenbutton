@@ -160,7 +160,7 @@ def add_received_value(outfile):
     try:
         data = pd.read_csv(outfile)
         source_df = pd.read_csv(outfile)
-        reference_df = pd.read_csv('/users/darroni/OneDrive/Documents/Solar/SCEUsage/ECC_data.csv')
+        reference_df = pd.read_csv('/path/to/ECC_data.csv')
     
         # Manage the time format to support the reference data
         source_df['StartTime'] = pd.to_datetime(source_df['StartTime'], format='%H:%M:%S').dt.hour
