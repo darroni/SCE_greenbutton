@@ -137,13 +137,17 @@ def add_delivery_cost(outfile):
         ("Summer", "Weekday", "Off-Peak"): 0.26, ("Summer", "Weekday", "On-Peak"): 0.63,
         ("Summer", "Weekend", "Mid-Peak"): 0.39, ("Summer", "Weekend", "Off-Peak"): 0.26,
     }
-    
     try:
         data = pd.read_csv(outfile)
-        data['Cost'] = data.apply(
-            lambda row: row['kwHUsage'] * del_costs.get((row['BillingSeason'], row['BillingDay'], row['TOU']), 0), axis=1
-        )
-        data.to_csv(outfile, index=False)
+        del_data = data[data['Tag'] == 'delivered']
+        if not del_data.empty:
+            data['Cost'] = data.apply(
+                lambda row: row['kwHUsage'] * del_costs.get((row['BillingSeason'], row['BillingDay'], row['TOU']), 0), axis=1
+            )
+            data.to_csv(outfile, index=False)
+            print(f"Delivery cost added...")
+        else:
+            pass
     except Exception as e:
         print(f"Error adding cost: {e}")
 
@@ -151,12 +155,16 @@ def add_delivery_cost(outfile):
 # The received value is based on the generated kwH. SCE's Pacific Time Zone ECC data found at: 
 # https://www.sce.com/sites/default/files/custom-files/PDF_Files/EEC_Factors_Nov_2023.xlsx
 def add_received_value(outfile):
+    # SCE offers an EEC bonus for customers that enroll in the first year of the Solar Billing Program.  Set to 0 if this if not applicable.
+    bonus = .04
     try:
+        data = pd.read_csv(outfile)
         source_df = pd.read_csv(outfile)
         reference_df = pd.read_csv('/users/darroni/OneDrive/Documents/Solar/SCEUsage/ECC_data.csv')
-        
+    
         # Manage the time format to support the reference data
         source_df['StartTime'] = pd.to_datetime(source_df['StartTime'], format='%H:%M:%S').dt.hour
+        source_df['Month'] = pd.to_datetime(source_df['Month'], format='%B').dt.month
         source_df.loc[source_df['StartTime'] == 0, 'StartTime'] = 24
 
         generated_df = source_df[source_df['Tag'] == 'generated']
@@ -172,6 +180,7 @@ def add_received_value(outfile):
             ]
             if not ref_row.empty:
                 cost = ref_row['SCE Gen - Weekend/Holiday EEC'].values[0] if weekend else ref_row['SCE Gen - Weekday EEC'].values[0]
+                cost = cost + bonus
                 calculated_costs.append(row['kwHUsage'] * cost)
             else:
                 calculated_costs.append(None)
@@ -181,9 +190,10 @@ def add_received_value(outfile):
 
         # Reset the time format to the original
         source_df['StartTime'] = source_df['StartTime'].apply(lambda x: '00:00:00' if x == 24 else datetime.time(x).strftime('%H:%M:%S'))
+        source_df['Month'] = pd.to_datetime(source_df['Month'], format='%m').dt.strftime('%B')
         source_df.to_csv(outfile, index=False)
 
-        print("Received Value complete")
+        print(f"Generated value added...")
     except Exception as e:
         print(f"Error adding received value: {e}")
 
