@@ -125,6 +125,46 @@ def add_tou(outfile):
     except Exception as e:
         print(f"Error adding TOU: {e}")
 
+#Subtract the generated from delivered khw to get net delivered usage as reported by SCE
+def normalize_kwh(outfile):
+    try:
+        # Load the data
+        data = pd.read_csv(outfile)
+        
+        # Create a mask for the 'delivered' and 'generated' rows
+        delivered_mask = data['Tag'] == 'delivered'
+        generated_mask = data['Tag'] == 'generated'
+        
+        # Copy the 'kwHUsage' column to avoid changing the original data during calculations
+        data['net_kwHUsage'] = data['kwHUsage'].copy()
+        
+        # Iterate over each row and calculate the net usage for 'delivered' rows
+        for index, row in data[delivered_mask].iterrows():
+            # Find the corresponding 'generated' row based on Date, StartTime, and EndTime
+            corresponding_generated = data[
+                (data['Date'] == row['Date']) &
+                (data['StartTime'] == row['StartTime']) &
+                (data['EndTime'] == row['EndTime']) &
+                generated_mask
+            ]
+            
+            if not corresponding_generated.empty:
+                # Subtract the generated 'kwHUsage' from the delivered 'kwHUsage'
+                data.at[index, 'net_kwHUsage'] -= corresponding_generated.iloc[0]['kwHUsage']
+        
+        # Update the 'kwHUsage' column with the net values
+        data['kwHUsage'] = data['net_kwHUsage']
+        
+        # Drop the temporary 'net_kwHUsage' column
+        data.drop(columns=['net_kwHUsage'], inplace=True)
+        
+        # Save the updated DataFrame to the CSV file
+        data.to_csv(outfile, index=False)
+        
+        print(f"Net usage calculated...")
+    except Exception as e:
+        print(f"Error calculating net usage: {e}")
+
 # Add the delivery cost to the output file.
 # The delivery cost is based on the billing season, billing day, and TOU.
 # It is calculated as the product of the usage and the delivery cost.
@@ -240,6 +280,7 @@ if __name__ == "__main__":
     add_seasons(output_file)
     add_weekday(output_file)
     add_tou(output_file)
+    normalize_kwh(output_file)
     add_delivery_cost(output_file)
     add_received_value(output_file)
     combine_data(output_file)
