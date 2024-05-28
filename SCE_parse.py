@@ -5,115 +5,109 @@ import datetime
 import pandas as pd
 import warnings
 
+# Constants
+MONTH_MAP = {
+    "01": "January", "02": "February", "03": "March", "04": "April", "05": "May",
+    "06": "June", "07": "July", "08": "August", "09": "September", "10": "October",
+    "11": "November", "12": "December"
+}
+SEASON_MAP = {
+    "January": "Winter", "February": "Winter", "March": "Winter", "April": "Spring",
+    "May": "Spring", "June": "Spring", "July": "Summer", "August": "Summer",
+    "September": "Summer", "October": "Fall", "November": "Fall", "December": "Fall"
+}
+BILLING_SEASON_MAP = {
+    "January": "Winter", "February": "Winter", "March": "Winter", "April": "Winter",
+    "May": "Winter", "June": "Summer", "July": "Summer", "August": "Summer",
+    "September": "Summer", "October": "Winter", "November": "Winter", "December": "Winter"
+}
+WEEKDAY_MAP = {
+    0: "Weekend", 1: "Weekday", 2: "Weekday", 3: "Weekday", 4: "Weekday",
+    5: "Weekday", 6: "Weekend"
+}
+DELIVERY_COSTS = {
+    ("Winter", "Weekday", "Off-Peak"): 0.24, ("Winter", "Weekday", "Mid-Peak"): 0.6,
+    ("Winter", "Weekday", "Super-Off-Peak"): 0.24, ("Winter", "Weekend", "Off-Peak"): 0.24,
+    ("Winter", "Weekend", "Mid-Peak"): 0.6, ("Winter", "Weekend", "Super-Off-Peak"): 0.24,
+    ("Summer", "Weekday", "Off-Peak"): 0.26, ("Summer", "Weekday", "On-Peak"): 0.63,
+    ("Summer", "Weekend", "Mid-Peak"): 0.39, ("Summer", "Weekend", "Off-Peak"): 0.26
+}
+BONUS = 0.04
+
 # Pandas will throw a future warning when injecting unsupport dtypes into a dataframe.  This is intended to suppress that warning.
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Define and write the header row to the output file
 def print_header(outfile):
-    with open(outfile, 'w', newline='') as out:
-        writer = csv.writer(out)
-        writer.writerow(["Date", "StartTime", "EndTime", "kwHUsage", "Tag", "Season", "Year", "Month", "BillingSeason", "BillingDay", "TOU", "Cost"])
+    try:
+        header = ["Date", "StartTime", "EndTime", "kwHUsage", "Tag", "Season", "Year", "Month", "BillingSeason", "BillingDay", "TOU", "Cost"]
+        df = pd.DataFrame(columns=header)
+        df.to_csv(outfile, index=False)
+        print(f"Header row written...")
+    except Exception as e:
+        print(f"Error writing header: {e}")
 
 # Parse the data from the input file and write it to the output file
 def parse_data(infile, outfile):
     rows_gen = 0
     rows_del = 0
     tag = ''
-    
-    with open(infile, 'r', newline='') as f_in, open(outfile, 'a', newline='') as f_out:
-        reader = csv.reader(f_in)
-        writer = csv.writer(f_out)
-        
-        # Set the power direction tag (i.e., outgoing/generated or incoming/delivered) 
-        # Get the values from the input file that will be written to the output file
-        for row in reader:
-            if not row:
-                continue
-            if 'Received' in row[0]:
-                tag = 'generated'
-            elif 'Delivered' in row[0] or 'Consumption' in row[0]:
-                tag = 'delivered'
-            elif 'to' in row[0]:
-                kwHUsage = float(row[1])
-                parse_row = row[0].split('to')
-                parse_row = [item.replace('Â\xa0', '') for item in parse_row]
-                start = parse_row[0].split(' ')
-                date = start[0].strip()
-                startTime = start[1].strip()
-                end = parse_row[1].split(' ')
-                endTime = end[2].strip()
+    try:
+        with open(infile, 'r', newline='') as f_in, open(outfile, 'a', newline='') as f_out:
+            reader = csv.reader(f_in)
+            writer = csv.writer(f_out)
+            
+            # Set the power direction tag (i.e., outgoing/generated or incoming/delivered) 
+            # Get the values from the input file that will be written to the output file
+            for row in reader:
+                if not row:
+                    continue
+                if 'Received' in row[0]:
+                    tag = 'generated'
+                elif 'Delivered' in row[0] or 'Consumption' in row[0]:
+                    tag = 'delivered'
+                elif 'to' in row[0]:
+                    kwHUsage = float(row[1])
+                    parse_row = row[0].split('to')
+                    parse_row = [item.replace('Â\xa0', '') for item in parse_row]
+                    start = parse_row[0].split(' ')
+                    date = start[0].strip()
+                    startTime = start[1].strip()
+                    end = parse_row[1].split(' ')
+                    endTime = end[2].strip()
 
-                if kwHUsage != 0:
-                    data = [date, startTime, endTime, kwHUsage, tag]
-                    writer.writerow(data)
-                    if tag == 'generated':
-                        rows_gen += 1
-                    elif tag == 'delivered':
-                        rows_del += 1
+                    if kwHUsage != 0:
+                        data = [date, startTime, endTime, kwHUsage, tag]
+                        writer.writerow(data)
+                        if tag == 'generated':
+                            rows_gen += 1
+                        elif tag == 'delivered':
+                            rows_del += 1
+                elif "0NaN-NaN-NaN NaN:NaN:00Â\xa0 for NaN" in row[0]:
+                    print("No data in the SCE_Usage.csv file.")
+                    exit()
+        print(f"Primary data parsing complete...")
+    except Exception as e:
+        print(f"Error parsing data: {e}")
 
 # Add the month and year to the output file
-def add_month_year(outfile):
-    month = {
-        "01": "January", "02": "February", "03": "March", "04": "April", "05": "May", 
-        "06": "June", "07": "July", "08": "August", "09": "September", "10": "October", 
-        "11": "November", "12": "December"
-    }
-    
+def enrich_data(outfile):
     try:
         data = pd.read_csv(outfile)
-        data['Month'] = pd.to_datetime(data['Date']).dt.month.map("{:02d}".format).map(month)
-        data['Year'] = pd.to_datetime(data['Date']).dt.year
-        data.to_csv(outfile, index=False)
-    except Exception as e:
-        print(f"Error adding month/year: {e}")
-
-# Add the calendar and billing seasons to the output file
-def add_seasons(outfile):
-    season = {
-        "January": "Winter", "February": "Winter", "March": "Winter", "April": "Spring", 
-        "May": "Spring", "June": "Spring", "July": "Summer", "August": "Summer", 
-        "September": "Summer", "October": "Fall", "November": "Fall", "December": "Fall",
-    }
-    billing_season = {
-        "January": "Winter", "February": "Winter", "March": "Winter", "April": "Winter", 
-        "May": "Winter", "June": "Summer", "July": "Summer", "August": "Summer", 
-        "September": "Summer", "October": "Winter", "November": "Winter", "December": "Winter",
-    }
-    
-    try:
-        data = pd.read_csv(outfile)
-        data['Season'] = data['Month'].map(season)
-        data['BillingSeason'] = data['Month'].map(billing_season)
-        data.to_csv(outfile, index=False)
-    except Exception as e:
-        print(f"Error adding seasons: {e}")
-
-# Label the day as weekday or weekend and write to the output file
-def add_weekday(outfile):
-    weekday = {
-        0: "Weekend", 1: "Weekday", 2: "Weekday", 3: "Weekday", 4: "Weekday", 
-        5: "Weekday", 6: "Weekend",
-    }
-    
-    try:
-        data = pd.read_csv(outfile)
-        data['BillingDay'] = pd.to_datetime(data['Date']).dt.weekday.map(weekday)
-        data.to_csv(outfile, index=False)
-    except Exception as e:
-        print(f"Error adding weekday: {e}")
-
-# Add the time of use (TOU) to the output file.
-# The TOU is based on the time of day, billing season, and billing day.
-def add_tou(outfile):
-    try:
-        data = pd.read_csv(outfile)
-        data['TOU'] = 'Off-Peak'
+        data['Date'] = pd.to_datetime(data['Date'])
+        data['Month'] = data['Date'].dt.month.map("{:02d}".format).map(MONTH_MAP)
+        data['Year'] = data['Date'].dt.year
+        data['Season'] = data['Month'].map(SEASON_MAP)
+        data['BillingSeason'] = data['Month'].map(BILLING_SEASON_MAP)
+        data['BillingDay'] = data['Date'].dt.weekday.map(WEEKDAY_MAP)
         
+        # Add TOU
+        data['TOU'] = 'Off-Peak'
         winter_mask = data['BillingSeason'] == 'Winter'
         summer_mask = data['BillingSeason'] == 'Summer'
         weekday_mask = data['BillingDay'] == 'Weekday'
         weekend_mask = data['BillingDay'] == 'Weekend'
-
+        
         data.loc[winter_mask & (data['StartTime'] >= '21:00:00') & (data['EndTime'] <= '08:00:00'), 'TOU'] = 'Off-Peak'
         data.loc[winter_mask & (data['StartTime'] >= '16:00:00') & (data['EndTime'] <= '21:00:00'), 'TOU'] = 'Mid-Peak'
         data.loc[winter_mask & (data['StartTime'] >= '08:00:00') & (data['EndTime'] <= '16:00:00'), 'TOU'] = 'Super-Off-Peak'
@@ -122,10 +116,11 @@ def add_tou(outfile):
         data.loc[winter_mask & ((data['StartTime'] >= '23:00:00') | (data['StartTime'] < '00:00:00')), 'TOU'] = 'Off-Peak'
         
         data.to_csv(outfile, index=False)
+        print(f"Data enrichment complete...")
     except Exception as e:
-        print(f"Error adding TOU: {e}")
+        print(f"Error enriching data: {e}")
 
-#Subtract the generated from delivered khw to get net delivered usage as reported by SCE
+#subtract the generated from delivered khw to get the net usage
 def normalize_kwh(outfile):
     try:
         # Load the data
@@ -170,19 +165,12 @@ def normalize_kwh(outfile):
 # It is calculated as the product of the usage and the delivery cost.
 # the del_costs dictionary is based on SCE's TOU-D-Prime rate schedule.
 def add_delivery_cost(outfile):
-    del_costs = {
-        ("Winter", "Weekday", "Off-Peak"): 0.24, ("Winter", "Weekday", "Mid-Peak"): 0.6,
-        ("Winter", "Weekday", "Super-Off-Peak"): 0.24, ("Winter", "Weekend", "Off-Peak"): 0.24,
-        ("Winter", "Weekend", "Mid-Peak"): 0.6, ("Winter", "Weekend", "Super-Off-Peak"): 0.24,
-        ("Summer", "Weekday", "Off-Peak"): 0.26, ("Summer", "Weekday", "On-Peak"): 0.63,
-        ("Summer", "Weekend", "Mid-Peak"): 0.39, ("Summer", "Weekend", "Off-Peak"): 0.26,
-    }
     try:
         data = pd.read_csv(outfile)
         del_data = data[data['Tag'] == 'delivered']
         if not del_data.empty:
             data['Cost'] = data.apply(
-                lambda row: row['kwHUsage'] * del_costs.get((row['BillingSeason'], row['BillingDay'], row['TOU']), 0), axis=1
+                lambda row: row['kwHUsage'] * DELIVERY_COSTS.get((row['BillingSeason'], row['BillingDay'], row['TOU']), 0), axis=1
             )
             data.to_csv(outfile, index=False)
             print(f"Delivery cost added...")
@@ -196,11 +184,9 @@ def add_delivery_cost(outfile):
 # https://www.sce.com/sites/default/files/custom-files/PDF_Files/EEC_Factors_Nov_2023.xlsx
 def add_received_value(outfile):
     # SCE offers an EEC bonus for customers that enroll in the first year of the Solar Billing Program.  Set to 0 if this if not applicable.
-    bonus = .04
     try:
-        data = pd.read_csv(outfile)
         source_df = pd.read_csv(outfile)
-        reference_df = pd.read_csv('/path/to/ECC_data.csv')
+        reference_df = pd.read_csv('/users/darroni/OneDrive/Documents/Solar/SCEUsage/ECC_data.csv')
     
         # Manage the time format to support the reference data
         source_df['StartTime'] = pd.to_datetime(source_df['StartTime'], format='%H:%M:%S').dt.hour
@@ -219,8 +205,11 @@ def add_received_value(outfile):
                 (reference_df['Hour'] == hour)
             ]
             if not ref_row.empty:
-                cost = ref_row['SCE Gen - Weekend/Holiday EEC'].values[0] if weekend else ref_row['SCE Gen - Weekday EEC'].values[0]
-                cost = cost + bonus
+                gen_cost = ref_row['SCE Gen - Weekend/Holiday EEC'].values[0] if weekend else ref_row['SCE Gen - Weekday EEC'].values[0]
+                del_cost = ref_row['Delivery - Weekend/Holiday EEC'].values[0] if weekend else ref_row['Delivery - Weekday EEC'].values[0]
+                cost = gen_cost + del_cost
+                bonus_value = row['kwHUsage'] * BONUS
+                cost = cost + bonus_value
                 calculated_costs.append(row['kwHUsage'] * cost)
             else:
                 calculated_costs.append(None)
@@ -266,23 +255,21 @@ def combine_data(outfile):
         grouped_data = grouped_data[ordered_columns]
         
         grouped_data.to_csv(outfile, index=False)
+        print(f"Data combined...")
     except Exception as e:
         print(f"Error combining data: {e}")
 
 # Main function to run the program
 if __name__ == "__main__":
-    input_file = "sce_usage.csv"
+    input_file = r"c:\Users\darroni\OneDrive\documents\solar\sceusage\sce_usage.csv"
     output_file = input_file.split('.')[0] + "_parsed.csv"
 
     print_header(output_file)
     parse_data(input_file, output_file)
-    add_month_year(output_file)
-    add_seasons(output_file)
-    add_weekday(output_file)
-    add_tou(output_file)
+    enrich_data(output_file)
     normalize_kwh(output_file)
     add_delivery_cost(output_file)
     add_received_value(output_file)
     combine_data(output_file)
 
-    print("Parsing complete! Output is in " + output_file)
+    print("Parsing complete and stored in " + output_file)
