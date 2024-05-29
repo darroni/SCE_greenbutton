@@ -1,6 +1,4 @@
-# Description: This script parses the data from the SCE usage file and writes it to a new file.
-# Description: This script parses the data from the SCE usage file and writes it to a new file.
-
+# Description: This script parses the data from the SCE usage file and writes it to a new file
 import csv
 import datetime
 import pandas as pd
@@ -179,7 +177,7 @@ def add_received_value(outfile):
     bonus = .04
     try:
         source_df = pd.read_csv(outfile)
-        reference_df = pd.read_csv('/users/darroni/OneDrive/Documents/Solar/SCEUsage/ECC_data.csv')
+        reference_df = pd.read_csv('/path/to/ECC_data.csv')
     
         # Manage the time format to support the reference data
         source_df['StartTime'] = pd.to_datetime(source_df['StartTime'], format='%H:%M:%S').dt.hour
@@ -251,7 +249,7 @@ def combine_data(outfile):
 
 # Main function to run the program
 if __name__ == "__main__":
-    input_file = r"c:\Users\darroni\OneDrive\documents\solar\sceusage\sce_usage.csv"
+    input_file = "/path/to/sce_usage.csv"
     output_file = input_file.split('.')[0] + "_parsed.csv"
 
     write_header(output_file)
