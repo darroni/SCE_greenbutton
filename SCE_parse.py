@@ -1,4 +1,5 @@
 # Description: This script parses the data from the SCE usage file and writes it to a new file.
+# Description: This script parses the data from the SCE usage file and writes it to a new file.
 
 import csv
 import datetime
@@ -38,9 +39,10 @@ DELIVERY_COSTS = {
 # SCE offers an EEC bonus for customers that enroll in the first year of the Solar Billing Program.  Set to 0 if this if not applicable.
 BONUS = 0.04
 
-# Surpress future warnings.
+# Pandas will throw a future warning when injecting unsupport dtypes into a dataframe.  This is intended to suppress that warning.
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+# Define and write the header row to the output file
 # Define and write the header row to the output file
 def write_header(outfile):
     header = ["Date", "StartTime", "EndTime", "kwHUsage", "Tag", "Season", "Year", "Month", "BillingSeason", "BillingDay", "TOU", "Cost"]
@@ -48,6 +50,7 @@ def write_header(outfile):
     df.to_csv(outfile, index=False)
     print("Header row written...")
 
+# Parse the data from the input file and write it to the output file
 # Parse the data from the input file and write it to the output file
 def parse_data(infile, outfile):
     data_rows = []
@@ -112,20 +115,43 @@ def enrich_data(outfile):
     except Exception as e:
         print(f"Error enriching data: {e}")
 
-#subtract the generated from delivered khw to get the net usage
+# subtract the generated from delivered khw to get the net usage
 def normalize_kwh(outfile):
     try:
+        # Load the data
         data = pd.read_csv(outfile)
-        delivered = data[data['Tag'] == 'delivered']
-        generated = data[data['Tag'] == 'generated']
-
-        merged = pd.merge(delivered, generated, on=['Date', 'StartTime', 'EndTime'], suffixes=('_del', '_gen'))
-        merged['net_kwHUsage'] = merged['kwHUsage_del'] - merged['kwHUsage_gen']
-        data.update(merged[['Date', 'StartTime', 'EndTime', 'net_kwHUsage']])
-        data.loc[data['Tag'] == 'delivered', 'kwHUsage'] = data['net_kwHUsage']
+        
+        # Create a mask for the 'delivered' and 'generated' rows
+        delivered_mask = data['Tag'] == 'delivered'
+        generated_mask = data['Tag'] == 'generated'
+        
+        # Copy the 'kwHUsage' column to avoid changing the original data during calculations
+        data['net_kwHUsage'] = data['kwHUsage'].copy()
+        
+        # Iterate over each row and calculate the net usage for 'delivered' rows
+        for index, row in data[delivered_mask].iterrows():
+            # Find the corresponding 'generated' row based on Date, StartTime, and EndTime
+            corresponding_generated = data[
+                (data['Date'] == row['Date']) &
+                (data['StartTime'] == row['StartTime']) &
+                (data['EndTime'] == row['EndTime']) &
+                generated_mask
+            ]
+            
+            if not corresponding_generated.empty:
+                # Subtract the generated 'kwHUsage' from the delivered 'kwHUsage'
+                data.at[index, 'net_kwHUsage'] -= corresponding_generated.iloc[0]['kwHUsage']
+        
+        # Update the 'kwHUsage' column with the net values
+        data['kwHUsage'] = data['net_kwHUsage']
+        
+        # Drop the temporary 'net_kwHUsage' column
         data.drop(columns=['net_kwHUsage'], inplace=True)
+        
+        # Save the updated DataFrame to the CSV file
         data.to_csv(outfile, index=False)
-        print("Net usage calculated...")
+        
+        print(f"Net usage calculated...")
     except Exception as e:
         print(f"Error calculating net usage: {e}")
 
@@ -149,27 +175,52 @@ def add_delivery_cost(outfile):
 # The received value is based on the generated kwH. SCE's Pacific Time Zone ECC data found at: 
 # https://www.sce.com/sites/default/files/custom-files/PDF_Files/EEC_Factors_Nov_2023.xlsx
 def add_received_value(outfile):
+    # SCE offers an EEC bonus for customers that enroll in the first year of the Solar Billing Program.  Set to 0 if this if not applicable.
+    bonus = .04
     try:
-        data = pd.read_csv(outfile)
-        # Modify the path to match the location of your ECC_data.csv file
-        ecc_data = pd.read_csv('/path/to/SCE/ECC_data.csv')
-        data['StartTimeHour'] = pd.to_datetime(data['StartTime'], format='%H:%M:%S').dt.hour
-        data['Month'] = pd.to_datetime(data['Date']).dt.month
-        generated = data[data['Tag'] == 'generated']
-        for idx, row in generated.iterrows():
-            year, month, hour, is_weekend = row['Year'], row['Month'], row['StartTimeHour'], row['BillingDay'] == 'Weekend'
-            ref_row = ecc_data[(ecc_data['Price Effective Date'] == year) & (ecc_data['Month'] == month) & (ecc_data['Hour'] == hour)]
+        source_df = pd.read_csv(outfile)
+        reference_df = pd.read_csv('/users/darroni/OneDrive/Documents/Solar/SCEUsage/ECC_data.csv')
+    
+        # Manage the time format to support the reference data
+        source_df['StartTime'] = pd.to_datetime(source_df['StartTime'], format='%H:%M:%S').dt.hour
+        source_df['Month'] = pd.to_datetime(source_df['Month'], format='%B').dt.month
+        source_df.loc[source_df['StartTime'] == 0, 'StartTime'] = 24
+
+        generated_df = source_df[source_df['Tag'] == 'generated']
+
+        calculated_costs = []
+        for _, row in generated_df.iterrows():
+            year, month, hour = row['Year'], row['Month'], row['StartTime']
+            weekend = row['BillingDay'] == 'Weekend'
+            ref_row = reference_df[
+                (reference_df['Price Effective Date'] == year) & 
+                (reference_df['Month'] == month) & 
+                (reference_df['Hour'] == hour)
+            ]
             if not ref_row.empty:
-                gen_cost = ref_row['SCE Gen - Weekend/Holiday EEC'].values[0] if is_weekend else ref_row['SCE Gen - Weekday EEC'].values[0]
-                del_cost = ref_row['Delivery - Weekend/Holiday EEC'].values[0] if is_weekend else ref_row['Delivery - Weekday EEC'].values[0]
-                bonus_value = row['kwHUsage'] * BONUS
-                total_cost = row['kwHUsage'] * (gen_cost + del_cost + bonus_value)
-                data.at[idx, 'Cost'] = total_cost
-        data.to_csv(outfile, index=False)
-        print("Generated value added...")
+                gen_cost = ref_row['SCE Gen - Weekend/Holiday EEC'].values[0] if weekend else ref_row['SCE Gen - Weekday EEC'].values[0]
+                del_cost = ref_row['Delivery - Weekend/Holiday EEC'].values[0] if weekend else ref_row['Delivery - Weekday EEC'].values[0]
+                cost = gen_cost + del_cost
+                bonus_value = row['kwHUsage'] * bonus
+                cost = cost + bonus_value
+                calculated_costs.append(row['kwHUsage'] * cost)
+            else:
+                calculated_costs.append(None)
+
+        generated_df.loc[:, 'Cost'] = calculated_costs
+        source_df.update(generated_df['Cost'])
+
+        # Reset the time format to the original
+        source_df['StartTime'] = source_df['StartTime'].apply(lambda x: '00:00:00' if x == 24 else datetime.time(x).strftime('%H:%M:%S'))
+        source_df['Month'] = pd.to_datetime(source_df['Month'], format='%m').dt.strftime('%B')
+        source_df.to_csv(outfile, index=False)
+
+        print(f"Generated value added...")
     except Exception as e:
         print(f"Error adding received value: {e}")
 
+# Consolidate the SBP's 15 minute blocks of time into single hour blocks.
+# This reduces the rows in the output file and make it easier to analyze in Excel as a Pivot Table.
 # Consolidate the SBP's 15 minute blocks of time into single hour blocks.
 # This reduces the rows in the output file and make it easier to analyze in Excel as a Pivot Table.
 def combine_data(outfile):
@@ -190,6 +241,9 @@ def combine_data(outfile):
         grouped_data['StartTime'] = grouped_data['Hour'].apply(lambda x: f'{x:02}:00:00')
         grouped_data['EndTime'] = grouped_data['Hour'].apply(lambda x: f'{x+1:02}:00:00' if x < 23 else '00:00:00')
         grouped_data.drop(columns=['Hour'], inplace=True)
+        ordered_columns = ['Date', 'StartTime', 'EndTime', 'kwHUsage', 'Tag', 'Season', 'Year', 'Month', 'BillingSeason', 'BillingDay', 'TOU', 'Cost']
+        grouped_data = grouped_data[ordered_columns]
+        
         grouped_data.to_csv(outfile, index=False)
         print("Data combined...")
     except Exception as e:
@@ -197,8 +251,7 @@ def combine_data(outfile):
 
 # Main function to run the program
 if __name__ == "__main__":
-    # Modify the path to match the location of your SCE usage file
-    input_file = "/path/to/sce_usage.csv"
+    input_file = r"c:\Users\darroni\OneDrive\documents\solar\sceusage\sce_usage.csv"
     output_file = input_file.split('.')[0] + "_parsed.csv"
 
     write_header(output_file)
