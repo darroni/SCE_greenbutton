@@ -3,7 +3,7 @@ This respository has code that automates most of the download process for Southe
 
 Included are:
   - A Python script that downloads greenbutton data from SCE (SCE_download.py)
-  - A Ptyhon script that parses the greenbutton data and calculates cost/value (SCE_parse.py)
+  - A Python script that parses the greenbutton data and calculates cost/value (SCE_parse.py)
   - Example SCE's Solar Billing Plan greenbutton data file
   - Example SCE Energy Export Credit file
   - Example output file in CSV format
