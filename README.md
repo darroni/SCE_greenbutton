@@ -1,12 +1,12 @@
 # SCE_greenbutton
-This respository has code that automates most of the download process for Southern California Edison Solar Billing Plan, CSV-formated greenbutton usage data.  The code parses that greenbutton data into a more Excel friendly format and uses SCE's rate schedule for TOU-D-Prime to calculate estimated delivery costs and SCE's Energy Export Credit schedule to calculate generated costs.
+This respository automates most of the download process for Southern California Edison Solar Billing Plan (SBP/NEMv3)'s greenbutton-formatted usage data.  It parses the greenbutton data into an 'Excel friendly' format and uses SCE's TOU-D-Prime and Energy Export Credits (ECC) rate schedules to calculate delivery cost and self-generated value.
 
-Included are:
+This repo includes:
   - A Python script that downloads greenbutton data from SCE (SCE_download.py)
   - A Python script that parses the greenbutton data and calculates cost/value (SCE_parse.py)
-  - Example SCE's Solar Billing Plan greenbutton data file
-  - Example SCE Energy Export Credit file
-  - Example output file in CSV format
+  - An example SCE Solar Billing Plan greenbutton data file (Example_SCE_Usage.csv)
+  - An example SCE Energy Export Credit file (ECC_data.csv)
+  - Example output file in CSV format (Example_SCE_Usage_parsed.csv)
   - Example Excel file with Pivot Tables defined for kwH Used/Generated and Cost/Value
     
 ## Details
@@ -37,3 +37,5 @@ The only variable tha might need to be changed is the location of your input fil
 ````
 input_file = "/path/to/your/sce_usage.csv"
 ````
+### When complete
+With the SCE_usage_parsed.csv file populated, simply copy and past the data into the example Excel file for analysis or create your own data model.
