@@ -1,4 +1,5 @@
-# Description: This script parses the data from the SCE usage file and writes it to a new file
+# Description: This script parses the data from the SCE usage file and writes it to a new file.
+
 import csv
 import datetime
 import pandas as pd
@@ -41,7 +42,6 @@ BONUS = 0.04
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Define and write the header row to the output file
-# Define and write the header row to the output file
 def write_header(outfile):
     header = ["Date", "StartTime", "EndTime", "kwHUsage", "Tag", "Season", "Year", "Month", "BillingSeason", "BillingDay", "TOU", "Cost"]
     df = pd.DataFrame(columns=header)
@@ -49,11 +49,10 @@ def write_header(outfile):
     print("Header row written...")
 
 # Parse the data from the input file and write it to the output file
-# Parse the data from the input file and write it to the output file
 def parse_data(infile, outfile):
     data_rows = []
     try:
-        with open(infile, 'r', newline='') as f_in:
+        with open(infile, 'r', newline='', encoding='utf-8') as f_in:
             reader = csv.reader(f_in)
             tag = ''
             for row in reader:
@@ -78,7 +77,7 @@ def parse_data(infile, outfile):
                      print("No data in the SCE_Usage.csv file.")
                      exit()
         df = pd.DataFrame(data_rows, columns=["Date", "StartTime", "EndTime", "kwHUsage", "Tag"])
-        df.to_csv(outfile, mode='a', header=False, index=False)
+        df.to_csv(outfile, mode='a', header=False, index=False, encoding='utf-8')
         print("Primary data parsing complete...")
     except Exception as e:
         print(f"Error parsing data: {e}")
@@ -86,7 +85,7 @@ def parse_data(infile, outfile):
 # Add the month and year to the output file
 def enrich_data(outfile):
     try:
-        data = pd.read_csv(outfile)
+        data = pd.read_csv(outfile, encoding='utf-8')
         data['Date'] = pd.to_datetime(data['Date'])
         data['Month'] = data['Date'].dt.strftime('%m').map(MONTH_MAP)
         data['Year'] = data['Date'].dt.year
@@ -117,7 +116,7 @@ def enrich_data(outfile):
 def normalize_kwh(outfile):
     try:
         # Load the data
-        data = pd.read_csv(outfile)
+        data = pd.read_csv(outfile, encoding='utf-8')
         
         # Create a mask for the 'delivered' and 'generated' rows
         delivered_mask = data['Tag'] == 'delivered'
@@ -159,7 +158,7 @@ def normalize_kwh(outfile):
 # the del_costs dictionary is based on SCE's TOU-D-Prime rate schedule.
 def add_delivery_cost(outfile):
     try:
-        data = pd.read_csv(outfile)
+        data = pd.read_csv(outfile, encoding='utf-8')
 
         data['Cost'] = data.apply(
             lambda row: row['kwHUsage'] * DELIVERY_COSTS.get((row['BillingSeason'], row['BillingDay'], row['TOU']), 0) 
@@ -176,7 +175,9 @@ def add_received_value(outfile):
     # SCE offers an EEC bonus for customers that enroll in the first year of the Solar Billing Program.  Set to 0 if this if not applicable.
     bonus = .04
     try:
-        source_df = pd.read_csv(outfile)
+        source_df = pd.read_csv(outfile, encoding='utf-8')
+
+        # Modify the the path to the ECC data file
         reference_df = pd.read_csv('/path/to/ECC_data.csv')
     
         # Manage the time format to support the reference data
@@ -223,7 +224,7 @@ def add_received_value(outfile):
 # This reduces the rows in the output file and make it easier to analyze in Excel as a Pivot Table.
 def combine_data(outfile):
     try:
-        data = pd.read_csv(outfile)
+        data = pd.read_csv(outfile, encoding='utf-8')
         data['Hour'] = pd.to_datetime(data['StartTime'], format='%H:%M:%S').dt.hour
         agg_dict = {
                 'kwHUsage': 'sum',
