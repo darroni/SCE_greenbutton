@@ -48,4 +48,4 @@ This script uses PANDAS and OPENPYXL to copy and normalize the formating of the 
 This script executes each script in sequence, minimizing manual interaction.
 
 ### When complete
-With the SCE_usage_parsed.csv file populated, simply copy and past the data into the example Excel file for analysis or create your own data model.
+If you choose to run each script manually, when the SCE_usage_parsed.csv file populated, simply copy and past the data into the example Excel file for analysis or create your own data model.  Otherwise, the full process should run without interaction, save the requirements in SCE_download.py.
