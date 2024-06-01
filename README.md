@@ -4,6 +4,7 @@ This respository automates most of the download process for Southern California 
 This repo includes:
   - A Python script that downloads greenbutton data from SCE (SCE_download.py)
   - A Python script that parses the greenbutton data and calculates cost/value (SCE_parse.py)
+  - A Python script that merges the data from the _parsed.csv file to the Excel file for analysis
   - An example SCE Solar Billing Plan greenbutton data file (Example_SCE_Usage.csv)
   - An example SCE Energy Export Credit file (ECC_data.csv)
   - Example output file in CSV format (Example_SCE_Usage_parsed.csv)
@@ -37,5 +38,13 @@ The only variable tha might need to be changed is the location of your input fil
 ````
 input_file = "/path/to/your/sce_usage.csv"
 ````
+### SCE_merged_data.py
+
+This script uses PANDAS and OPENPYXL to copy and normalize the formating of the data in the _parsed.csv file to Excel.  It is copied in a data Table in Excel that is referenced by several pivot tables.
+
+### SCE_runall.py
+
+This script executes each script in sequence, minimizing manual interaction.
+
 ### When complete
 With the SCE_usage_parsed.csv file populated, simply copy and past the data into the example Excel file for analysis or create your own data model.
