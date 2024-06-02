@@ -22,11 +22,15 @@ try:
     csv_data = csv_data.map(lambda x: x.strip() if isinstance(x, str) else x)
     if 'Date' in csv_data.columns:
         csv_data['Date'] = pd.to_datetime(csv_data['Date']).dt.date
-    if 'StartTime' 'EndTime' in csv_data.columns:
-        csv_data['StartTime', 'EndTime'] = pd.to_datetime(csv_data['StartTime', 'EndTime']).dt.time
-        csv_data['StartTime', 'EndTime'] = csv_data['StartTime', 'EndTime'].apply(lambda x: x.strftime('%I:%M:%S %p'))
-    if 'kwHUsage' 'Cost' in csv_data.columns:
-        csv_data['kwHUsage' 'Cost'] = pd.to_numeric(csv_data['kwHUsage' 'Cost'], errors='coerce')
+    if 'StartTime' in csv_data.columns and 'EndTime' in csv_data.columns:
+        csv_data['StartTime'] = pd.to_datetime(csv_data['StartTime'], format='%H:%M:%S').dt.time
+        csv_data['EndTime'] = pd.to_datetime(csv_data['EndTime'], format='%H:%M:%S').dt.time
+        csv_data['StartTime'] = csv_data['StartTime'].apply(lambda x: x.strftime('%H:%M'))
+        csv_data['EndTime'] = csv_data['EndTime'].apply(lambda x: x.strftime('%H:%M'))
+    
+    if 'kwHUsage' in csv_data.columns and 'Cost' in csv_data.columns:
+        csv_data['kwHUsage'] = pd.to_numeric(csv_data['kwHUsage'], errors='coerce')
+        csv_data['Cost'] = pd.to_numeric(csv_data['Cost'], errors='coerce')
     print("Opened CSV file...")
 except Exception as e:
     print(f"Error reading CSV file: {e}")
